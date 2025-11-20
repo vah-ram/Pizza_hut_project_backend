@@ -6,10 +6,11 @@ import jwt from "jsonwebtoken";
 const router = express.Router();
 
 const con = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    host: "localhost",
+    user: "postgres",
+    password: "v155179m20",
+    database: "postgres",
+    port: 5432
 });
 
 con.connect()
