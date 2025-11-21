@@ -23,7 +23,7 @@ router.post('/register', async(req, res) => {
     const hashedPassword = await bcrypt.hash(password, 15);
 
     const insertquery =
-            "INSERT INTO users (name, surname, phonenumber, email, password) VALUES ($1,$2,$3,$4,$5)";
+            "INSERT INTO users (name, surname, phonenumber, email, password, role) VALUES ( $1, $2, $3, $4, $5, $6 )";
 
     const verifyquery = "SELECT * FROM users WHERE email = $1";
 
@@ -31,9 +31,11 @@ router.post('/register', async(req, res) => {
         const result = await con.query(verifyquery, [email]);
 
         if(result.rows.length > 0) {
-            return res.json({ status: false, message: "User with this email already exists!" });
+            return res.json({
+                status: false,
+                message: "User with this email already exists!" });
         } else {
-            await con.query(insertquery,[name, surname, phonenumber, email, hashedPassword ]);
+            await con.query(insertquery,[name, surname, phonenumber, email, hashedPassword, "User" ]);
             return res.json({ status: true })
         }
 
@@ -61,9 +63,9 @@ router.get('/login', async(req, res) => {
                     { email: result.rows[0].email },
                             process.env.JWT_SECRET_KEY,
                     { expiresIn: "7d" }
-                )
+                );
 
-                return res.json({ status: true, token });
+                return res.json({ status: true, token, user:result.rows[0] });
             } else {
                 return res.json({ status: false, message: "Please write correct password!!!"})
             }
