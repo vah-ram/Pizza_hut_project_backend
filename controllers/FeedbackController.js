@@ -15,4 +15,21 @@ con.connect()
     .then(() => console.log("Postgres is connected!!!"))
     .catch(err => console.error(err));
 
+router.post("/add", async (req, res) => {
+    const { email, text } = req.body;
+
+    try {
+
+        const addfeedbackquery = "INSERT INTO feedback (email, description) VALUES ( $1, $2 )";
+
+        await con.query(addfeedbackquery, [email, text]);
+
+        return res.json( { status: true } );
+
+    } catch(err) {
+        console.error(err);
+    }
+
+});
+
 export default router;

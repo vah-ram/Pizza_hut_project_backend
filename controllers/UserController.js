@@ -35,7 +35,7 @@ router.post('/register', async(req, res) => {
                 status: false,
                 message: "User with this email already exists!" });
         } else {
-            await con.query(insertquery,[name, surname, phonenumber, email, hashedPassword, "User" ]);
+            await con.query(insertquery,[ name, surname, phonenumber, email, hashedPassword, "User" ]);
             return res.json({ status: true })
         }
 
