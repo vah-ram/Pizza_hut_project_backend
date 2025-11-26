@@ -2,102 +2,145 @@ import express from "express";
 import { Client } from "pg";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
 
 const router = express.Router();
 
 const con = new Client({
-    host: "localhost",
-    user: "postgres",
-    password: "v155179m20",
-    database: "postgres",
-    port: 5432
+  host: "localhost",
+  user: "postgres",
+  password: "v155179m20",
+  database: "postgres",
+  port: 5432,
 });
 
-con.connect()
-    .then(() => console.log("Postgres is connected!!!"))
-    .catch(err => console.error(err));
+con
+  .connect()
+  .then(() => console.log("Postgres is connected!!!"))
+  .catch((err) => console.error(err));
 
-router.post('/register', async(req, res) => {
-    const { name, surname, phonenumber, email, password } = req.body;
+const getRandomNumber = () => {
+  return Math.floor(1000 + Math.random() * 9000);
+};
 
-    const hashedPassword = await bcrypt.hash(password, 15);
+router.post("/verify-email", async (req, res) => {
+  const email = req.body.email;
 
-    const insertquery =
-            "INSERT INTO users (name, surname, phonenumber, email, password, role) VALUES ( $1, $2, $3, $4, $5, $6 )";
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "vahramghazaryan515@gmail.com",
+      pass: "wlvy ecqj tqng kakh",
+    },
+  });
 
-    const verifyquery = "SELECT * FROM users WHERE email = $1";
+  const randomNumber = getRandomNumber();
 
-    try {
-        const result = await con.query(verifyquery, [email]);
+  const isSended = await transporter.sendMail({
+    from: "vahramghazaryan515@gmail.com",
+    to: email,
+    subject: "Please verify your email",
+    html: `
+        <h2>Your code for registration!</h2>
+        
+        <b 
+            style="font-size: 17px; color: green;"
+        >${randomNumber}</b>
+    `,
+  });
 
-        if(result.rows.length > 0) {
-            return res.json({
-                status: false,
-                message: "User with this email already exists!" });
-        } else {
-            await con.query(insertquery,[ name, surname, phonenumber, email, hashedPassword, "User" ]);
-            return res.json({ status: true })
-        }
-
-    } catch (err) {
-        console.error(err);
-    }
-
+  if (isSended) {
+    return res.json({ status: true, embedCode: randomNumber });
+  }
 });
 
-router.get('/login', async(req, res) => {
-    const { email, password } = req.query;
+router.post("/register", async (req, res) => {
+  const { name, surname, phonenumber, email, password } = req.body;
 
-    const isuserquery = "SELECT * FROM users WHERE email = $1";
+  const hashedPassword = await bcrypt.hash(password, 15);
 
-    try {
-        const result = await con.query(isuserquery, [email]);
+  const insertquery =
+    "INSERT INTO users (name, surname, phonenumber, email, password, role) VALUES ( $1, $2, $3, $4, $5, $6 )";
 
-        if(result.rows.length > 0) {
+  const verifyquery = "SELECT * FROM users WHERE email = $1";
 
-            const isPasswordValid = await bcrypt.compare(password, result.rows[0].password);
+  try {
+    const result = await con.query(verifyquery, [email]);
 
-            if(isPasswordValid) {
-
-                const token = await jwt.sign(
-                    { email: result.rows[0].email },
-                            process.env.JWT_SECRET_KEY,
-                    { expiresIn: "7d" }
-                );
-
-                return res.json({ status: true, token, user:result.rows[0] });
-            } else {
-                return res.json({ status: false, message: "Please write correct password!!!"})
-            }
-
-        } else {
-            return res.json({ status: false, message: "User with this email not found!!!"})
-        }
-
-    } catch(err) {
-        console.error(err)
-    }
-
-});
-
-router.get('/verifyprofile', async(req, res) => {
-    const token = req.query.token;
-
-    const decoded = await jwt.verify(
-        token,
-        process.env.JWT_SECRET_KEY
-    );
-
-    const getprofilequery =
-                        "SELECT * FROM users WHERE email = $1";
-
-    const result = await con.query(getprofilequery, [decoded.email]);
-
-    if(result.rows.length > 0) {
-        return res.json({ status: true, user: result.rows[0] });
+    if (result.rows.length > 0) {
+      return res.json({
+        status: false,
+        message: "User with this email already exists!",
+      });
     } else {
-        return res.json({ status: false });
+      await con.query(insertquery, [
+        name,
+        surname,
+        phonenumber,
+        email,
+        hashedPassword,
+        "User",
+      ]);
+      return res.json({ status: true });
     }
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+router.get("/login", async (req, res) => {
+  const { email, password } = req.query;
+
+  const isuserquery = "SELECT * FROM users WHERE email = $1";
+
+  try {
+    const result = await con.query(isuserquery, [email]);
+
+    if (result.rows.length > 0) {
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        result.rows[0].password
+      );
+
+      if (isPasswordValid) {
+        const token = await jwt.sign(
+          { email: result.rows[0].email },
+          process.env.JWT_SECRET_KEY,
+          { expiresIn: "7d" }
+        );
+
+        return res.json({ status: true, token, user: result.rows[0] });
+      } else {
+        return res.json({
+          status: false,
+          message: "Please write correct password!!!",
+        });
+      }
+    } else {
+      return res.json({
+        status: false,
+        message: "User with this email not found!!!",
+      });
+    }
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+router.get("/verifyprofile", async (req, res) => {
+  const token = req.query.token;
+
+  const decoded = await jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+  const getprofilequery = "SELECT * FROM users WHERE email = $1";
+
+  const result = await con.query(getprofilequery, [decoded.email]);
+
+  if (result.rows.length > 0) {
+    return res.json({ status: true, user: result.rows[0] });
+  } else {
+    return res.json({ status: false });
+  }
 });
 
 export default router;
